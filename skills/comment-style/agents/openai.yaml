@@ -1,0 +1,4 @@
+interface:
+  display_name: "Comment Style"
+  short_description: "Apply brief structured code comments"
+  default_prompt: "Use $comment-style to write or revise comments in the user's preferred style."
