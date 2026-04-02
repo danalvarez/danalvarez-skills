@@ -22,7 +22,8 @@ Document every function with the standard comment style for that language.
 
 - In C/C++, prefer Doxygen-style block comments, with at least @brief, @param and @return.
 - In Python, prefer concise docstrings in the style already used by the file or project. Do not stop at a one-line summary when parameters or return values should be documented too.
-- In R, prefer the project's normal roxygen-style or script-level comment convention when appropriate.
+- In R packages, use roxygen2-style function documentation when documenting a function that belongs to a package.
+- In standalone R scripts, do not default to roxygen2. Use a simple 1-2 line comment directly above the function that explains what it does.
 
 Keep function comments short and practical. Include:
 
@@ -211,6 +212,73 @@ def encode_location(latitude, longitude):
 ```
 
 Do not leave Python docstrings at only a summary line when the function has meaningful inputs or outputs. Keep them brief, but still document arguments and returns.
+
+### R package functions should use roxygen2
+
+```r
+#' Summarize monthly sales by region.
+#'
+#' Aggregates transactional sales data to monthly totals for each region and
+#' optionally keeps only regions that meet a minimum sales threshold.
+#'
+#' @param sales_data A data frame with `date`, `region`, and `sales` columns.
+#' @param min_sales Minimum monthly sales required to keep a region.
+#'
+#' @return A tibble with one row per region-month and total sales.
+#' @export
+summarize_monthly_sales <- function(sales_data, min_sales = 0) {
+  sales_data %>%
+    # Standardize dates before aggregation.
+    dplyr::mutate(month = lubridate::floor_date(date, "month")) %>%
+    # Collapse transactions to monthly totals by region.
+    dplyr::group_by(region, month) %>%
+    dplyr::summarise(total_sales = sum(sales, na.rm = TRUE), .groups = "drop") %>%
+    # Keep only regions that satisfy the reporting threshold.
+    dplyr::filter(total_sales >= min_sales)
+}
+```
+
+Use this style for functions that belong to an R package. The roxygen2 block should stay concise, but it should still cover purpose, parameters, return value, and package tags such as `@export` when needed.
+
+### R script functions should stay lighter
+
+```r
+# Convert raw sales rows into region-level monthly totals.
+summarize_monthly_sales <- function(sales_data) {
+  sales_data %>%
+    # Normalize the transaction date to monthly buckets.
+    dplyr::mutate(month = lubridate::floor_date(date, "month")) %>%
+    # Aggregate rows to one total per region-month.
+    dplyr::group_by(region, month) %>%
+    dplyr::summarise(total_sales = sum(sales, na.rm = TRUE), .groups = "drop")
+}
+```
+
+For ordinary functions in scripts, prefer a short top comment over a full roxygen2 block. Keep it to 1-2 lines unless the surrounding project clearly requires package-style documentation.
+
+### R pipelines should use subsection comments between verb groups
+
+```r
+report_data <- orders %>%
+  # Keep only completed orders from the reporting period.
+  dplyr::filter(status == "complete", order_date >= start_date, order_date <= end_date) %>%
+  # Derive the fields needed for downstream grouping.
+  dplyr::mutate(
+    month = lubridate::floor_date(order_date, "month"),
+    revenue = quantity * unit_price
+  ) %>%
+  # Collapse orders to customer-month metrics.
+  dplyr::group_by(customer_id, month) %>%
+  dplyr::summarise(
+    orders = dplyr::n(),
+    revenue = sum(revenue, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # Keep only customers with meaningful activity.
+  dplyr::filter(orders >= 2 | revenue > 500)
+```
+
+When a `dplyr` pipeline contains several stages, comment each stage or cluster of related verbs so a reader can skim the pipeline and understand the intent of the transformation.
 
 ### More detailed explanation only when justified
 
